@@ -1,4 +1,9 @@
-export default class Board {
+export enum SQUARE {
+  EMPTY = 0,
+  WHITE = 1,
+  BLACK = 2,
+}
+export class Board {
   public state!: number[][];
 
   constructor() {
@@ -10,21 +15,54 @@ export default class Board {
       [0, 0, 0, 2, 1, 0, 0, 0],
       [0, 0, 0, 0, 0, 0, 0, 0],
       [0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0]
+      [0, 0, 0, 0, 0, 0, 0, 0],
     ];
+  }
+
+  public setState(state: number[][]) {
+    this.state = state;
+  }
+
+  // return the sum of all cells
+  public getSum(): number {
+    return this.state.reduce((s, e) => s + e.reduce((s2, e2) => s2 + e2, 0), 0);
+  }
+
+  public countOccurencesOf(player: SQUARE): number {
+    return this.state.reduce(
+      (s, e) => s + e.reduce((s2, e2) => (e2 === player ? s2++ : s2), 0),
+      0,
+    );
+  }
+
+  public getCell(i: number, j: number) {
+    return this.state[i][j];
+  }
+
+  public setToZero() {
+    this.state = Array(8)
+      .fill(0)
+      .map(_ => Array(8).fill(0));
   }
 
   public getColumn(i: number): number[] {
     const column = [];
-    for (let j = 0; j < this.state.length; j++) {
-      column.push(this.state[j][i]);
+    for (const col of this.state) {
+      column.push(col[i]);
     }
     return column;
   }
 
+  public getMirrorDiagonals(): number[][] {
+    const board = new Board();
+    board.setState(this.getReversedRows());
+    return board.getDiagonals();
+  }
+
   // get top-left ---> down-right diagonals
-  public getDiagonals(arr: number[][]): number[][] {
+  public getDiagonals(): number[][] {
     const res = [];
+    const arr = this.state;
     const l = arr.length;
     // get the upper right diagonals
     for (let i = 1; i < l; i++) {
@@ -51,64 +89,71 @@ export default class Board {
     return res;
   }
 
-  public flip(i: number, j: number, playerId: number, opponent: number) {
-    const length = this.state.length;
-    this.state[i][j] = playerId;
-    let str = this.state[i].reduce((s, e) => s + e, "");
-    if (
-      RegExp(`(0*)(${playerId}+)(${opponent}+)(${playerId}+)(0*)`).test(str)
-    ) {
-      for (let j = 0; j < length; j++) {
-        let e = this.state[i][j];
-        this.state[i][j] = e !== 0 && e !== playerId ? playerId : e;
+  // flip discs in a one dimensional array
+  public flipDiscs(row: number[], player: number, opponent: number): number[] {
+    let playerStarted = -1;
+    let opponentStarted = -1;
+    // TODO: find a simpler way to do this
+    for (let j = 0; j < row.length; j++) {
+      switch (row[j]) {
+        case player:
+          if (playerStarted >= 0 && opponentStarted >= 0) {
+            for (let k = playerStarted; k <= opponentStarted; k++) {
+              row[k] = player;
+            }
+          }
+          playerStarted = j;
+          break;
+        case SQUARE.EMPTY:
+          playerStarted = -1;
+          opponentStarted = -1;
+          break;
+        case opponent:
+          opponentStarted = j;
+          break;
       }
     }
-    str = this.getColumn(j).reduce((s, e) => s + e, "");
-    if (
-      RegExp(`(0*)(${playerId}+)(${opponent}+)(${playerId}+)(0*)`).test(str)
-    ) {
-      for (let i = 0; i < length; i++) {
-        let e = this.state[i][j];
-        this.state[i][j] = e !== 0 && e !== playerId ? playerId : e;
-      }
-    }
+    return row;
+  }
 
-    // TODO: flip diagonal
-    const position = this.state.length + (i - j) - 1;
-    const diag1 = this.getDiagonals(this.state)[position];
-    str = diag1.reduce((s, e) => s + e, "");
-    if (
-      RegExp(`(0*)(${playerId}+)(${opponent}+)(${playerId}+)(0*)`).test(str)
-    ) {
-      for (let j = 0; j < diag1.length; j++) {
-        let e = diag1[j];
-        diag1[j] = e !== 0 && e !== playerId ? playerId : e;
-      }
-      this.setDiagonal(diag1, position + 1);
+  public setColumn(arr: number[], i: number): void {
+    for (let j = 0; j < this.state.length; j++) {
+      this.state[j][i] = arr[j];
     }
+  }
+
+  public flip(i: number, j: number, player: number, opponent: number) {
+    const length = this.state.length;
+    this.state[i][j] = player;
+    // flip rows
+    this.state[i] = this.flipDiscs(this.state[i], player, opponent);
+    // flip columns
+    this.setColumn(this.flipDiscs(this.getColumn(j), player, opponent), j);
 
     {
-      // TODO: flip diagonal
-      const position = i + j;
-      const diag1 = this.getDiagonals(this.state.map(a => a.slice().reverse()))[
-        position
-      ];
-      console.log("position", position);
-      console.log("diag1", diag1);
-
-      str = diag1.reduce((s, e) => s + e, "");
-      if (
-        RegExp(`(0*)(${playerId}+)(${opponent}+)(${playerId}+)(0*)`).test(str)
-      ) {
-        for (let j = 0; j < diag1.length; j++) {
-          let e = diag1[j];
-          diag1[j] = e !== 0 && e !== playerId ? playerId : e;
-        }
-        this.state = this.state.map(a => a.slice().reverse());
-        this.setDiagonal(diag1, position + 1);
-        this.state = this.state.map(a => a.slice().reverse());
-      }
+      // flip top-left->down-right diagonal
+      const position = this.state.length + (i - j) - 1;
+      const diagonal = this.getDiagonals()[position];
+      this.setDiagonal(
+        this.flipDiscs(diagonal, player, opponent),
+        position + 1,
+      );
     }
+    {
+      // flip top-left->down-right diagonal
+      const position = i + j;
+      const diagonal = this.getMirrorDiagonals()[position];
+      this.setMirrorDiagonal(
+        this.flipDiscs(diagonal, player, opponent),
+        position + 1,
+      );
+    }
+  }
+
+  public setMirrorDiagonal(arr: number[], i: number): void {
+    this.reverseRows();
+    this.setDiagonal(arr, i);
+    this.reverseRows();
   }
 
   public setDiagonal(arr2: number[], i: number): void {
@@ -130,5 +175,13 @@ export default class Board {
         arr[i - l + j][j] = arr2[j];
       }
     }
+  }
+
+  public reverseRows() {
+    this.state = this.state.map(a => a.slice().reverse());
+  }
+
+  public getReversedRows(): number[][] {
+    return this.state.map(a => a.slice().reverse());
   }
 }

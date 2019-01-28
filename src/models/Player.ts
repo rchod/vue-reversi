@@ -1,4 +1,4 @@
-export default class Player {
+export class Player {
   public id!: number;
   public name!: string;
   public score!: number;
@@ -6,5 +6,7 @@ export default class Player {
 
   constructor(id: number) {
     this.id = id;
+    this.score = 0;
+    this.time = 0;
   }
 }

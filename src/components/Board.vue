@@ -1,6 +1,6 @@
 <template>
-  <div>
-    <span>currentPlayer: {{currentPlayer}}</span>
+  <div class="container">
+    <PlayerInfo :player="player1" :currentPlayer="currentPlayer"/>
     <div class="board">
       <div class="row" v-for="(row, i) in board.state" :key="i">
         <div
@@ -11,47 +11,71 @@
         >
           <div
             v-on:click="play(i,j)"
+            :class="{'white':currentPlayer=== 1,'black':currentPlayer===2}"
             class="next-move"
-            v-if="nextMoves[i][j] > 0"
-          >{{nextMoves[i][j]}}</div>
+            v-if="nextMoves.getCell(i,j) > 0"
+          >{{nextMoves.getCell(i,j)}}</div>
         </div>
       </div>
     </div>
+    <PlayerInfo :player="player2" :currentPlayer="currentPlayer"/>
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from "vue-property-decorator";
-import Board from "@/models/Board";
+import { Component, Prop, Vue } from 'vue-property-decorator';
+import PlayerInfo from './PlayerInfo.vue';
+import { Board, SQUARE } from '@/models/Board';
+import { Player } from '../models/Player';
 
-enum SQUARE {
-  EMPTY = 0,
-  WHITE = 1,
-  BLACK = 2
-}
-
-@Component
+@Component({
+  components: {
+    PlayerInfo,
+  },
+})
 export default class BoardVue extends Vue {
   @Prop() private board!: Board;
-  private nextMoves!: number[][];
+  private nextMoves!: Board;
   private currentPlayer!: SQUARE;
+  private player1!: Player;
+  private player2!: Player;
 
   constructor() {
     super();
+    // black starts first
     this.currentPlayer = SQUARE.BLACK;
+    // a matrix where earch cell replresents points gain
     this.nextMoves = this.getNextMovesFor(this.currentPlayer);
+    // these two will show each players info
+    // like, time, points, name, ...
+    this.player1 = new Player(SQUARE.WHITE);
+    this.player2 = new Player(SQUARE.BLACK);
   }
 
   play(i: number, j: number) {
-    console.log("play", i, j);
     this.board.flip(
       i,
       j,
       this.currentPlayer,
-      this.getOpponentOf(this.currentPlayer)
+      this.getOpponentOf(this.currentPlayer),
     );
     this.switchPlayer();
     this.nextMoves = this.getNextMovesFor(this.currentPlayer);
+    setTimeout(this.checkWhoWon, 500);
+  }
+
+  checkWhoWon(): void {
+    const opponent = this.getOpponentOf(this.currentPlayer);
+    if (this.nextMoves.getSum() === 0) {
+      if (
+        this.board.countOccurencesOf(this.currentPlayer) >
+        this.board.countOccurencesOf(opponent)
+      ) {
+        alert(`player ${this.currentPlayer} won !`);
+      } else {
+        alert(`player ${opponent} won !`);
+      }
+    }
   }
 
   switchPlayer() {
@@ -63,9 +87,20 @@ export default class BoardVue extends Vue {
     return player === SQUARE.WHITE ? SQUARE.BLACK : SQUARE.WHITE;
   }
 
+  getAllLegalMoves(arr: SQUARE[], player: SQUARE) {
+    // get legal moves starting from left
+    const leftMoves = this.getLegalmoves(arr, player);
+    // get legal moves starting from right
+    const rightMoves = this.getLegalmoves(arr.slice().reverse(), player)
+      .slice()
+      .reverse();
+    // merge the two results
+    return this.sumArrays(leftMoves, rightMoves);
+  }
+
   getLegalmoves(arr: SQUARE[], player: SQUARE): number[] {
     const res = Array(arr.length).fill(0);
-    const str = arr.reduce((s, e) => s + e, "");
+    const str = arr.reduce((s, e) => s + e, '');
     const opponent = this.getOpponentOf(player);
     if (RegExp(`(0*)(${player}+)(${opponent}+)(0+)`).test(str)) {
       let score = 0;
@@ -86,195 +121,51 @@ export default class BoardVue extends Vue {
     return res;
   }
 
-  mergeArray(arr1: number[], arr2: number[]): number[] {
+  sumArrays(arr1: number[], arr2: number[]): number[] {
     return arr1.map((e, i) => e + arr2[i]);
   }
 
-  getColumn(arr: number[][], i: number): number[] {
-    const column = [];
-    for (let j = 0; j < arr.length; j++) {
-      column.push(arr[j][i]);
-    }
-    return column;
-  }
-
-  setColumn(arr: number[][], arr2: number[], i: number): void {
-    for (let j = 0; j < arr.length; j++) {
-      arr[j][i] = arr2[j];
-    }
-  }
-
-  setDiagonal(arr: number[][], arr2: number[], i: number): void {
-    const l = arr.length;
-    // NOTE: there may be a better way to set everything in one loop
-    if (i < l) {
-      for (let j = 0; j < i; j++) {
-        arr[j][l - i + j] = arr2[j];
-      }
-    }
-    if (i === l) {
-      for (let i = 0; i < l; i++) {
-        arr[i][i] = arr2[i];
-      }
-    }
-    if (i > l) {
-      for (let j = 0; i - l + j < l; j++) {
-        arr[i - l + j][j] = arr2[j];
-      }
-    }
-  }
-
-  // get top-left ---> down-right diagonals
-  getDiagonals(arr: number[][]): number[][] {
-    const res = [];
-    const l = arr.length;
-    // get the upper right diagonals
-    for (let i = 1; i < l; i++) {
-      let diag = [];
-      for (let j = 0; j < i; j++) {
-        diag.push(arr[j][l - i + j]);
-      }
-      res.push(diag);
-    }
-    // get the middle diagonal
-    let diag = [];
-    for (let i = 0; i < l; i++) {
-      diag.push(arr[i][i]);
-    }
-    res.push(diag);
-    // get the lower left diagonals
-    for (let i = l - 1; i >= 1; i--) {
-      let diag = [];
-      for (let j = i - 1; j >= 0; j--) {
-        diag.push(arr[l - i + j][j]);
-      }
-      res.push(diag.reverse());
-    }
-    return res;
-  }
-
-  getNextMovesFor(player1: SQUARE): number[][] {
+  getNextMovesFor(player: SQUARE): Board {
     const length = this.board.state.length;
-    const board = this.board.state;
-    const opponent = this.getOpponentOf(player1);
-    let scoreBoard = Array(8)
-      .fill(0)
-      .map(a => Array(8).fill(0));
+    const opponent = this.getOpponentOf(player);
+    let scoreBoard = new Board();
+    scoreBoard.setToZero();
 
     // left ----> right
     for (let i = 0; i < length; i++) {
-      const scores = this.getLegalmoves(board[i], player1);
-      scoreBoard[i] = this.mergeArray(scoreBoard[i], scores);
-    }
-    // right ----> left
-    for (let i = 0; i < length; i++) {
-      const scores = this.getLegalmoves(board[i].slice().reverse(), player1);
-      scoreBoard[i] = this.mergeArray(scoreBoard[i], scores.slice().reverse());
+      const scores = this.getAllLegalMoves(this.board.state[i], player);
+      scoreBoard.state[i] = this.sumArrays(scoreBoard.state[i], scores);
     }
     // top ----> down
     for (let i = 0; i < length; i++) {
-      const scores = this.getLegalmoves(this.getColumn(board, i), player1);
-      this.setColumn(
-        scoreBoard,
-        this.mergeArray(this.getColumn(scoreBoard, i), scores),
-        i
-      );
-    }
-    console.log("scoreBoard 1", JSON.parse(JSON.stringify(scoreBoard)));
-    // down ----> top
-    for (let i = 0; i < length; i++) {
-      const scores = this.getLegalmoves(
-        this.getColumn(board, i)
-          .slice()
-          .reverse(),
-        player1
-      );
-      this.setColumn(
-        scoreBoard,
-        this.mergeArray(
-          this.getColumn(scoreBoard, i),
-          scores.slice().reverse()
-        ),
-        i
-      );
-    }
-    console.log("scoreBoard 2", JSON.parse(JSON.stringify(scoreBoard)));
-
-    {
-      // diagonals: up-left ----> down-right
-      const boardDiags = this.getDiagonals(board);
-      const scoreBoardDiags = this.getDiagonals(scoreBoard);
-      console.log("boardDiags", boardDiags);
-      console.log("scoreBoardDiags", scoreBoardDiags);
-      for (let i = 0; i < boardDiags.length; i++) {
-        const scores = this.getLegalmoves(boardDiags[i], player1);
-        // if (scores.reduce((s,e) => s+e, 0)>0) {}
-        this.setDiagonal(
-          scoreBoard,
-          this.mergeArray(scoreBoardDiags[i], scores),
-          i + 1
-        );
-      }
+      const scores = this.getAllLegalMoves(this.board.getColumn(i), player);
+      scoreBoard.setColumn(this.sumArrays(scoreBoard.getColumn(i), scores), i);
     }
 
     {
-      // diagonals: down-right ----> up-left
-      const boardDiags = this.getDiagonals(board);
-      const scoreBoardDiags = this.getDiagonals(scoreBoard);
-      console.log("boardDiags ++++", boardDiags);
+      // diagonals: top-left ----> down-right
+      const boardDiags = this.board.getDiagonals();
+      const scoreBoardDiags = scoreBoard.getDiagonals();
       for (let i = 0; i < boardDiags.length; i++) {
-        const scores = this.getLegalmoves(
-          boardDiags[i].slice().reverse(),
-          player1
-        );
-        this.setDiagonal(
-          scoreBoard,
-          this.mergeArray(scoreBoardDiags[i], scores.slice().reverse()),
-          i + 1
+        const scores = this.getAllLegalMoves(boardDiags[i], player);
+        scoreBoard.setDiagonal(
+          this.sumArrays(scoreBoardDiags[i], scores),
+          i + 1,
         );
       }
     }
     {
       // diagonals: top-right ----> down-left
-      const boardDiags = this.getDiagonals(board.map(a => a.slice().reverse()));
-      const scoreBoardDiags = this.getDiagonals(
-        scoreBoard.map(a => a.slice().reverse())
-      );
-      console.log("boardDiags", boardDiags);
+      const boardDiags = this.board.getMirrorDiagonals();
+      const scoreBoardDiags = scoreBoard.getMirrorDiagonals();
       for (let i = 0; i < boardDiags.length; i++) {
-        const scores = this.getLegalmoves(boardDiags[i], player1);
-        scoreBoard = scoreBoard.map(a => a.slice().reverse());
-        this.setDiagonal(
-          scoreBoard,
-          this.mergeArray(scoreBoardDiags[i], scores),
-          i + 1
+        const scores = this.getAllLegalMoves(boardDiags[i], player);
+        scoreBoard.setMirrorDiagonal(
+          this.sumArrays(scoreBoardDiags[i], scores),
+          i + 1,
         );
-        scoreBoard = scoreBoard.map(a => a.slice().reverse());
       }
     }
-    {
-      // diagonals: top-right ----> down-left
-      const boardDiags = this.getDiagonals(board.map(a => a.slice().reverse()));
-      const scoreBoardDiags = this.getDiagonals(
-        scoreBoard.map(a => a.slice().reverse())
-      );
-      console.log("boardDiags", boardDiags);
-      for (let i = 0; i < boardDiags.length; i++) {
-        const scores = this.getLegalmoves(
-          boardDiags[i].slice().reverse(),
-          player1
-        );
-        scoreBoard = scoreBoard.map(a => a.slice().reverse());
-        this.setDiagonal(
-          scoreBoard,
-          this.mergeArray(scoreBoardDiags[i], scores.slice().reverse()),
-          i + 1
-        );
-        scoreBoard = scoreBoard.map(a => a.slice().reverse());
-      }
-    }
-
-    console.log("scoreBoard", JSON.parse(JSON.stringify(scoreBoard)));
     return scoreBoard;
   }
 }
@@ -282,8 +173,14 @@ export default class BoardVue extends Vue {
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped lang="scss">
+$size: 600px;
+.container {
+  border: 2px solid #000;
+  width: $size;
+  margin: auto;
+  background: green;
+}
 .board {
-  $size: 600px;
   border: 2px solid #000;
   width: $size;
   height: $size;
@@ -301,19 +198,9 @@ export default class BoardVue extends Vue {
   background-size: contain;
   flex: 1;
 
-  &.white {
-    background-image: url(~/shuriken_w.png);
-  }
-
-  &.black {
-    background-image: url(~/shuriken_b.png);
-  }
-
   .next-move {
-    color: #000;
     font-size: 50px;
     font-weight: bold;
-    border: 2px solid #000;
     border-radius: 73%;
     width: 80%;
     height: 80%;
@@ -325,6 +212,24 @@ export default class BoardVue extends Vue {
       box-shadow: inset 0 0 10px #000000;
       cursor: pointer;
     }
+
+    &.white {
+      color: #fff;
+      border: 2px solid #fff;
+    }
+
+    &.black {
+      color: #000;
+      border: 2px solid #000;
+    }
+  }
+
+  &.white {
+    background-image: url(~/shuriken_w.png);
+  }
+
+  &.black {
+    background-image: url(~/shuriken_b.png);
   }
 }
 </style>
