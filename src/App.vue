@@ -1,25 +1,41 @@
 <template>
   <div id="app">
-    <img alt="Vue logo" src="./assets/logo.png">
-    <HelloWorld msg="Welcome to Your Vue.js + TypeScript App"/>
+    <PlayerInfo :player="player1"/>
+    <BoardVue :board="board"/>
+    <PlayerInfo :player="player2"/>
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
-import HelloWorld from './components/HelloWorld.vue';
+import { Component, Vue } from "vue-property-decorator";
+import BoardVue from "./components/Board.vue";
+import PlayerInfo from "./components/PlayerInfo.vue";
+import Player from "./models/Player";
+import Board from "./models/Board";
 
 @Component({
   components: {
-    HelloWorld,
-  },
+    BoardVue,
+    PlayerInfo
+  }
 })
-export default class App extends Vue {}
+export default class App extends Vue {
+  private board!: Board;
+  private player1!: Player;
+  private player2!: Player;
+
+  constructor() {
+    super();
+    this.board = new Board();
+    this.player1 = new Player(1);
+    this.player2 = new Player(2);
+  }
+}
 </script>
 
 <style lang="scss">
 #app {
-  font-family: 'Avenir', Helvetica, Arial, sans-serif;
+  font-family: "Avenir", Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
