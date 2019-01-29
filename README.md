@@ -7,7 +7,7 @@ TODO:
   - Level 1: choose next move randomly
   - Level 2: choose next move giving maximum score
   - Level 3: implement a Minimax algorithm with pruning
-- Add a resposive design
+- Add a resposive layout
 
 
 ![Alt text](https://i.imgur.com/1chL2zX.png "vue-reversi")
