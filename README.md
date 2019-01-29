@@ -1,6 +1,7 @@
 TODO:
 - Let the user choose his opponent (human or computer)
 - Add a nice music in the background
+- Add some cool animations
 - Add more unit tests (when the chai-typescript bug is fixed)
 - Add three levels of difficulty when playing the computer; 
   - Level 1: choose next move randomly
