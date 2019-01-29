@@ -1,4 +1,4 @@
-export enum SQUARE {
+export enum CELL_STATUS {
   EMPTY = 0,
   WHITE = 1,
   BLACK = 2,
@@ -28,9 +28,9 @@ export class Board {
     return this.state.reduce((s, e) => s + e.reduce((s2, e2) => s2 + e2, 0), 0);
   }
 
-  public countOccurencesOf(player: SQUARE): number {
+  public countOccurencesOf(player: CELL_STATUS): number {
     return this.state.reduce(
-      (s, e) => s + e.reduce((s2, e2) => (e2 === player ? s2++ : s2), 0),
+      (sum, row) => sum + row.reduce((s, e) => (e === player ? ++s : s), 0),
       0,
     );
   }
@@ -42,7 +42,7 @@ export class Board {
   public setToZero() {
     this.state = Array(8)
       .fill(0)
-      .map(_ => Array(8).fill(0));
+      .map(() => Array(8).fill(0));
   }
 
   public getColumn(i: number): number[] {
@@ -72,12 +72,14 @@ export class Board {
       }
       res.push(diag);
     }
-    // get the middle diagonal
-    const diag = [];
-    for (let i = 0; i < l; i++) {
-      diag.push(arr[i][i]);
+    {
+      // get the middle diagonal
+      const diag = [];
+      for (let i = 0; i < l; i++) {
+        diag.push(arr[i][i]);
+      }
+      res.push(diag);
     }
-    res.push(diag);
     // get the lower left diagonals
     for (let i = l - 1; i >= 1; i--) {
       const diag = [];
@@ -89,7 +91,12 @@ export class Board {
     return res;
   }
 
-  // flip discs in a one dimensional array
+  /**
+   * flip discs in a one dimensional array
+   * @example
+   * // returns [0,1,1,1,1,1,2,0]
+   * flipDiscs([0,1,1,2,2,1,2,0], 2, 1)
+   */
   public flipDiscs(row: number[], player: number, opponent: number): number[] {
     let playerStarted = -1;
     let opponentStarted = -1;
@@ -104,7 +111,7 @@ export class Board {
           }
           playerStarted = j;
           break;
-        case SQUARE.EMPTY:
+        case CELL_STATUS.EMPTY:
           playerStarted = -1;
           opponentStarted = -1;
           break;
@@ -166,8 +173,8 @@ export class Board {
       }
     }
     if (i === l) {
-      for (let i = 0; i < l; i++) {
-        arr[i][i] = arr2[i];
+      for (let k = 0; k < l; k++) {
+        arr[k][k] = arr2[k];
       }
     }
     if (i > l) {

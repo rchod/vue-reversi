@@ -25,7 +25,7 @@
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
 import PlayerInfo from './PlayerInfo.vue';
-import { Board, SQUARE } from '@/models/Board';
+import { Board, CELL_STATUS } from '@/models/Board';
 import { Player } from '../models/Player';
 
 @Component({
@@ -36,23 +36,27 @@ import { Player } from '../models/Player';
 export default class BoardVue extends Vue {
   @Prop() private board!: Board;
   private nextMoves!: Board;
-  private currentPlayer!: SQUARE;
+  private currentPlayer!: CELL_STATUS;
   private player1!: Player;
   private player2!: Player;
 
   constructor() {
     super();
     // black starts first
-    this.currentPlayer = SQUARE.BLACK;
+    this.currentPlayer = CELL_STATUS.BLACK;
     // a matrix where earch cell replresents points gain
     this.nextMoves = this.getNextMovesFor(this.currentPlayer);
     // these two will show each players info
-    // like, time, points, name, ...
-    this.player1 = new Player(SQUARE.WHITE);
-    this.player2 = new Player(SQUARE.BLACK);
+    // like, time, points, name, score ...
+    this.player1 = new Player(CELL_STATUS.WHITE);
+    this.player2 = new Player(CELL_STATUS.BLACK);
   }
 
-  play(i: number, j: number) {
+  public mounted() {
+    this.updateScores();
+  }
+
+  public play(i: number, j: number) {
     this.board.flip(
       i,
       j,
@@ -61,10 +65,16 @@ export default class BoardVue extends Vue {
     );
     this.switchPlayer();
     this.nextMoves = this.getNextMovesFor(this.currentPlayer);
-    setTimeout(this.checkWhoWon, 500);
+    setTimeout(this.alertWhoWon, 500);
+    this.updateScores();
   }
 
-  checkWhoWon(): void {
+  public updateScores() {
+    this.player1.score = this.board.countOccurencesOf(this.player1.id);
+    this.player2.score = this.board.countOccurencesOf(this.player2.id);
+  }
+
+  public alertWhoWon(): void {
     const opponent = this.getOpponentOf(this.currentPlayer);
     if (this.nextMoves.getSum() === 0) {
       if (
@@ -78,16 +88,18 @@ export default class BoardVue extends Vue {
     }
   }
 
-  switchPlayer() {
+  public switchPlayer() {
     this.currentPlayer =
-      this.currentPlayer === SQUARE.BLACK ? SQUARE.WHITE : SQUARE.BLACK;
+      this.currentPlayer === CELL_STATUS.BLACK
+        ? CELL_STATUS.WHITE
+        : CELL_STATUS.BLACK;
   }
 
-  getOpponentOf(player: SQUARE) {
-    return player === SQUARE.WHITE ? SQUARE.BLACK : SQUARE.WHITE;
+  public getOpponentOf(player: CELL_STATUS) {
+    return player === CELL_STATUS.WHITE ? CELL_STATUS.BLACK : CELL_STATUS.WHITE;
   }
 
-  getAllLegalMoves(arr: SQUARE[], player: SQUARE) {
+  public getAllLegalMoves(arr: CELL_STATUS[], player: CELL_STATUS) {
     // get legal moves starting from left
     const leftMoves = this.getLegalmoves(arr, player);
     // get legal moves starting from right
@@ -98,7 +110,7 @@ export default class BoardVue extends Vue {
     return this.sumArrays(leftMoves, rightMoves);
   }
 
-  getLegalmoves(arr: SQUARE[], player: SQUARE): number[] {
+  public getLegalmoves(arr: CELL_STATUS[], player: CELL_STATUS): number[] {
     const res = Array(arr.length).fill(0);
     const str = arr.reduce((s, e) => s + e, '');
     const opponent = this.getOpponentOf(player);
@@ -112,7 +124,7 @@ export default class BoardVue extends Vue {
         if (startCount && arr[i] === opponent) {
           score++;
         }
-        if (score > 0 && arr[i] === SQUARE.EMPTY) {
+        if (score > 0 && arr[i] === CELL_STATUS.EMPTY) {
           res[i] = score;
           break;
         }
@@ -121,14 +133,14 @@ export default class BoardVue extends Vue {
     return res;
   }
 
-  sumArrays(arr1: number[], arr2: number[]): number[] {
+  public sumArrays(arr1: number[], arr2: number[]): number[] {
     return arr1.map((e, i) => e + arr2[i]);
   }
 
-  getNextMovesFor(player: SQUARE): Board {
+  public getNextMovesFor(player: CELL_STATUS): Board {
     const length = this.board.state.length;
     const opponent = this.getOpponentOf(player);
-    let scoreBoard = new Board();
+    const scoreBoard = new Board();
     scoreBoard.setToZero();
 
     // left ----> right
@@ -178,10 +190,10 @@ $size: 600px;
   border: 2px solid #000;
   width: $size;
   margin: auto;
-  background: green;
+  border-color: #9ecaed;
+  box-shadow: 0 0 30px #9ecaed;
 }
 .board {
-  border: 2px solid #000;
   width: $size;
   height: $size;
   margin: auto;
