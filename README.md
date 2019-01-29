@@ -1,3 +1,4 @@
+![Alt text](https://i.imgur.com/1chL2zX.png "vue-reversi")
 # reversi
 
 ## Project setup
