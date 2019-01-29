@@ -3,9 +3,9 @@ TODO:
 - Add a nice music in the background
 - Add more unit tests (when the chai-typescript bug is fixed)
 - Add three levels of difficulty when playing the computer; 
-  Level 1: choose next move randomly
-  Level 2: choose next move giving maximum score
-  Level 3: implement a Minimax algorithm with pruning
+  - Level 1: choose next move randomly
+  - Level 2: choose next move giving maximum score
+  - Level 3: implement a Minimax algorithm with pruning
 
 
 ![Alt text](https://i.imgur.com/1chL2zX.png "vue-reversi")
