@@ -1,3 +1,6 @@
+Disclaimer:
+I'm a complete beginner with Vue and this project is just me trying to complete a technical test
+
 TODO:
 - Let the user choose his opponent (human or computer)
 - Add a nice music in the background
