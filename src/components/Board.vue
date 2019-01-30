@@ -112,9 +112,9 @@ export default class BoardVue extends Vue {
 
   public getLegalmoves(arr: CELL_STATUS[], player: CELL_STATUS): number[] {
     const res = Array(arr.length).fill(0);
-    const str = arr.reduce((s, e) => s + e, '');
+    const row = arr.reduce((s, e) => s + e, '');
     const opponent = this.getOpponentOf(player);
-    if (RegExp(`(0*)(${player}+)(${opponent}+)(0+)`).test(str)) {
+    if (RegExp(`(0*)(${player}+)(${opponent}+)(0+)`).test(row)) {
       let score = 0;
       let startCount = false;
       for (let i = 0; i < arr.length; i++) {
