@@ -1,247 +1,260 @@
 <template>
   <div class="container">
-    <PlayerInfo :player="player1" :currentPlayer="currentPlayer"/>
+    <PlayerInfo :player="player1" :currentPlayer="currentPlayer" />
     <div class="board">
       <div class="row" v-for="(row, i) in board.state" :key="i">
         <div
-          :class="{'white':cell===1,'black':cell===2}"
+          :class="{ white: cell === 1, black: cell === 2 }"
           class="cell"
           v-for="(cell, j) in row"
           :key="j"
         >
           <div
-            v-on:click="play(i,j)"
-            :class="{'white':currentPlayer=== 1,'black':currentPlayer===2}"
+            @click="play(i, j)"
+            :class="{ white: currentPlayer === 1, black: currentPlayer === 2 }"
             class="next-move"
-            v-if="nextMoves.getCell(i,j) > 0"
-          >{{nextMoves.getCell(i,j)}}</div>
+            v-if="nextMoves.getCell(i, j) > 0"
+          >
+            {{ nextMoves.getCell(i, j) }}
+          </div>
         </div>
       </div>
     </div>
-    <PlayerInfo :player="player2" :currentPlayer="currentPlayer"/>
+    <PlayerInfo :player="player2" :currentPlayer="currentPlayer" />
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from 'vue-property-decorator';
+import { defineComponent, ref, onMounted } from 'vue';
 import PlayerInfo from './PlayerInfo.vue';
 import { Board, CELL_STATUS } from '@/models/Board';
 import { Player } from '../models/Player';
 
-@Component({
+export default defineComponent({
+  name: 'BoardVue',
   components: {
     PlayerInfo,
   },
-})
-export default class BoardVue extends Vue {
-  @Prop() private board!: Board;
-  private nextMoves!: Board;
-  private currentPlayer!: CELL_STATUS;
-  private player1!: Player;
-  private player2!: Player;
+  props: {
+    board: {
+      type: Object as () => Board,
+      required: true,
+    },
+  },
+  setup(props) {
+    const getNextMovesFor = (player: CELL_STATUS): Board => {
+      const length = props.board.state.length;
+      const opponent = getOpponentOf(player);
+      const scoreBoard = new Board();
+      scoreBoard.setToZero();
 
-  constructor() {
-    super();
-    // black starts first
-    this.currentPlayer = CELL_STATUS.BLACK;
-    // a matrix where earch cell replresents points gain
-    this.nextMoves = this.getNextMovesFor(this.currentPlayer);
-    // these two will show each players info
-    // like, time, points, name, score ...
-    this.player1 = new Player(CELL_STATUS.WHITE);
-    this.player2 = new Player(CELL_STATUS.BLACK);
-  }
-
-  public mounted() {
-    this.updateScores();
-  }
-
-  public play(i: number, j: number) {
-    this.board.flip(
-      i,
-      j,
-      this.currentPlayer,
-      this.getOpponentOf(this.currentPlayer),
-    );
-    this.switchPlayer();
-    this.nextMoves = this.getNextMovesFor(this.currentPlayer);
-    setTimeout(this.alertWhoWon, 500);
-    this.updateScores();
-  }
-
-  public updateScores() {
-    this.player1.score = this.board.countOccurencesOf(this.player1.id);
-    this.player2.score = this.board.countOccurencesOf(this.player2.id);
-  }
-
-  public alertWhoWon(): void {
-    const opponent = this.getOpponentOf(this.currentPlayer);
-    if (this.nextMoves.getSum() === 0) {
-      if (
-        this.board.countOccurencesOf(this.currentPlayer) >
-        this.board.countOccurencesOf(opponent)
-      ) {
-        alert(`player ${this.currentPlayer} won !`);
-      } else {
-        alert(`player ${opponent} won !`);
+      // left ----> right
+      for (let i = 0; i < length; i++) {
+        const scores = getAllLegalMoves(props.board.state[i], player);
+        scoreBoard.state[i] = sumArrays(scoreBoard.state[i], scores);
       }
-    }
-  }
-
-  public switchPlayer() {
-    this.currentPlayer =
-      this.currentPlayer === CELL_STATUS.BLACK
-        ? CELL_STATUS.WHITE
-        : CELL_STATUS.BLACK;
-  }
-
-  public getOpponentOf(player: CELL_STATUS) {
-    return player === CELL_STATUS.WHITE ? CELL_STATUS.BLACK : CELL_STATUS.WHITE;
-  }
-
-  public getAllLegalMoves(arr: CELL_STATUS[], player: CELL_STATUS) {
-    // get legal moves starting from left
-    const leftMoves = this.getLegalmoves(arr, player);
-    // get legal moves starting from right
-    const rightMoves = this.getLegalmoves(arr.slice().reverse(), player)
-      .slice()
-      .reverse();
-    // merge the two results
-    return this.sumArrays(leftMoves, rightMoves);
-  }
-
-  public getLegalmoves(arr: CELL_STATUS[], player: CELL_STATUS): number[] {
-    const res = Array(arr.length).fill(0);
-    const row = arr.reduce((s, e) => s + e, '');
-    const opponent = this.getOpponentOf(player);
-    if (RegExp(`(0*)(${player}+)(${opponent}+)(0+)`).test(row)) {
-      let score = 0;
-      let startCount = false;
-      for (let i = 0; i < arr.length; i++) {
-        if (arr[i] === player) {
-          startCount = true;
-        }
-        if (startCount && arr[i] === opponent) {
-          score++;
-        }
-        if (score > 0 && arr[i] === CELL_STATUS.EMPTY) {
-          res[i] = score;
-          break;
-        }
+      // top ----> down
+      for (let i = 0; i < length; i++) {
+        const scores = getAllLegalMoves(props.board.getColumn(i), player);
+        scoreBoard.setColumn(sumArrays(scoreBoard.getColumn(i), scores), i);
       }
-    }
-    return res;
-  }
 
-  public sumArrays(arr1: number[], arr2: number[]): number[] {
-    return arr1.map((e, i) => e + arr2[i]);
-  }
-
-  public getNextMovesFor(player: CELL_STATUS): Board {
-    const length = this.board.state.length;
-    const opponent = this.getOpponentOf(player);
-    const scoreBoard = new Board();
-    scoreBoard.setToZero();
-
-    // left ----> right
-    for (let i = 0; i < length; i++) {
-      const scores = this.getAllLegalMoves(this.board.state[i], player);
-      scoreBoard.state[i] = this.sumArrays(scoreBoard.state[i], scores);
-    }
-    // top ----> down
-    for (let i = 0; i < length; i++) {
-      const scores = this.getAllLegalMoves(this.board.getColumn(i), player);
-      scoreBoard.setColumn(this.sumArrays(scoreBoard.getColumn(i), scores), i);
-    }
-
-    {
       // diagonals: top-left ----> down-right
-      const boardDiags = this.board.getDiagonals();
+      const boardDiags = props.board.getDiagonals();
       const scoreBoardDiags = scoreBoard.getDiagonals();
       for (let i = 0; i < boardDiags.length; i++) {
-        const scores = this.getAllLegalMoves(boardDiags[i], player);
-        scoreBoard.setDiagonal(
-          this.sumArrays(scoreBoardDiags[i], scores),
-          i + 1,
-        );
+        const scores = getAllLegalMoves(boardDiags[i], player);
+        scoreBoard.setDiagonal(sumArrays(scoreBoardDiags[i], scores), i + 1);
       }
-    }
-    {
+
       // diagonals: top-right ----> down-left
-      const boardDiags = this.board.getMirrorDiagonals();
-      const scoreBoardDiags = scoreBoard.getMirrorDiagonals();
-      for (let i = 0; i < boardDiags.length; i++) {
-        const scores = this.getAllLegalMoves(boardDiags[i], player);
+      const boardDiagsMirror = props.board.getMirrorDiagonals();
+      const scoreBoardDiagsMirror = scoreBoard.getMirrorDiagonals();
+      for (let i = 0; i < boardDiagsMirror.length; i++) {
+        const scores = getAllLegalMoves(boardDiagsMirror[i], player);
         scoreBoard.setMirrorDiagonal(
-          this.sumArrays(scoreBoardDiags[i], scores),
+          sumArrays(scoreBoardDiagsMirror[i], scores),
           i + 1,
         );
       }
-    }
-    return scoreBoard;
-  }
-}
+
+      return scoreBoard;
+    };
+
+    const getOpponentOf = (player: CELL_STATUS) => {
+      return player === CELL_STATUS.WHITE
+        ? CELL_STATUS.BLACK
+        : CELL_STATUS.WHITE;
+    };
+
+    const switchPlayer = () => {
+      currentPlayer.value =
+        currentPlayer.value === CELL_STATUS.BLACK
+          ? CELL_STATUS.WHITE
+          : CELL_STATUS.BLACK;
+    };
+
+    const getAllLegalMoves = (arr: CELL_STATUS[], player: CELL_STATUS) => {
+      const leftMoves = getLegalmoves(arr, player);
+      const rightMoves = getLegalmoves(arr.slice().reverse(), player)
+        .slice()
+        .reverse();
+      return sumArrays(leftMoves, rightMoves);
+    };
+
+    const getLegalmoves = (
+      arr: CELL_STATUS[],
+      player: CELL_STATUS,
+    ): number[] => {
+      const res = Array(arr.length).fill(0);
+      const row = arr.reduce((s, e) => s + e, '');
+      const opponent = getOpponentOf(player);
+      if (RegExp(`(0*)(${player}+)(${opponent}+)(0+)`).test(row)) {
+        let score = 0;
+        let startCount = false;
+        for (let i = 0; i < arr.length; i++) {
+          if (arr[i] === player) {
+            startCount = true;
+          }
+          if (startCount && arr[i] === opponent) {
+            score++;
+          }
+          if (score > 0 && arr[i] === CELL_STATUS.EMPTY) {
+            res[i] = score;
+            break;
+          }
+        }
+      }
+      return res;
+    };
+
+    const sumArrays = (arr1: number[], arr2: number[]): number[] => {
+      return arr1.map((e, i) => e + arr2[i]);
+    };
+
+    const alertWhoWon = (): void => {
+      const opponent = getOpponentOf(currentPlayer.value);
+      if (nextMoves.value.getSum() === 0) {
+        if (
+          props.board.countOccurencesOf(currentPlayer.value) >
+          props.board.countOccurencesOf(opponent)
+        ) {
+          alert(`Player ${currentPlayer.value} won!`);
+        } else {
+          alert(`Player ${opponent} won!`);
+        }
+      }
+    };
+
+    const currentPlayer = ref(CELL_STATUS.BLACK);
+    const nextMoves = ref(getNextMovesFor(currentPlayer.value));
+
+    const player1 = ref(new Player(CELL_STATUS.WHITE));
+    const player2 = ref(new Player(CELL_STATUS.BLACK));
+
+    const updateScores = () => {
+      player1.value.score = props.board.countOccurencesOf(player1.value.id);
+      player2.value.score = props.board.countOccurencesOf(player2.value.id);
+    };
+
+    const play = (i: number, j: number) => {
+      props.board.flip(
+        i,
+        j,
+        currentPlayer.value,
+        getOpponentOf(currentPlayer.value),
+      );
+      switchPlayer();
+      nextMoves.value = getNextMovesFor(currentPlayer.value);
+      setTimeout(alertWhoWon, 500);
+      updateScores();
+    };
+
+    onMounted(updateScores);
+
+    return {
+      currentPlayer,
+      nextMoves,
+      player1,
+      player2,
+      play,
+    };
+  },
+});
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped lang="scss">
-$size: 600px;
-.container {
-  border: 2px solid #000;
-  width: $size;
-  margin: auto;
-  border-color: #9ecaed;
-  box-shadow: 0 0 30px #9ecaed;
+<style>
+:root {
+  --size: 600px;
+  --border-color: #9ecaed;
+  --shadow-color: #9ecaed;
+  --background-color: green;
+  --white-color: #fff;
+  --black-color: #000;
+  --hover-shadow: #000000;
+  --white-background-image: url(../assets/shuriken_w.png);
+  --black-background-image: url(../assets/shuriken_b.png);
 }
+
+.container {
+  border: 2px solid var(--black-color);
+  width: var(--size);
+  margin: auto;
+  border-color: var(--border-color);
+  box-shadow: 0 0 30px var(--shadow-color);
+}
+
 .board {
-  width: $size;
-  height: $size;
+  width: var(--size);
+  height: var(--size);
   margin: auto;
   display: flex;
   flex-direction: column;
-  background: green;
+  background: var(--background-color);
 }
+
 .row {
   display: flex;
   flex: 1;
 }
+
 .cell {
-  border: 1px solid #000;
+  border: 1px solid var(--black-color);
   background-size: contain;
   flex: 1;
+}
 
-  .next-move {
-    font-size: 50px;
-    font-weight: bold;
-    border-radius: 73%;
-    width: 80%;
-    height: 80%;
-    margin: auto;
-    text-align: center;
-    margin-top: 5px;
+.cell .next-move {
+  font-size: 50px;
+  font-weight: bold;
+  border-radius: 73%;
+  width: 80%;
+  height: 80%;
+  margin: auto;
+  text-align: center;
+  margin-top: 5px;
+}
 
-    &:hover {
-      box-shadow: inset 0 0 10px #000000;
-      cursor: pointer;
-    }
+.cell .next-move:hover {
+  box-shadow: inset 0 0 10px var(--hover-shadow);
+  cursor: pointer;
+}
 
-    &.white {
-      color: #fff;
-      border: 2px solid #fff;
-    }
+.cell .next-move.white {
+  color: var(--white-color);
+  border: 2px solid var(--white-color);
+}
 
-    &.black {
-      color: #000;
-      border: 2px solid #000;
-    }
-  }
+.cell .next-move.black {
+  color: var(--black-color);
+  border: 2px solid var(--black-color);
+}
 
-  &.white {
-    background-image: url(~/shuriken_w.png);
-  }
+.cell.white {
+  background-image: var(--white-background-image);
+}
 
-  &.black {
-    background-image: url(~/shuriken_b.png);
-  }
+.cell.black {
+  background-image: var(--black-background-image);
 }
 </style>

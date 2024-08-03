@@ -185,10 +185,10 @@ export class Board {
   }
 
   public reverseRows() {
-    this.state = this.state.map(a => a.slice().reverse());
+    this.state = this.state.map((a) => a.slice().reverse());
   }
 
   public getReversedRows(): number[][] {
-    return this.state.map(a => a.slice().reverse());
+    return this.state.map((a) => a.slice().reverse());
   }
 }

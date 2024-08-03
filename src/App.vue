@@ -1,30 +1,32 @@
 <template>
   <div id="app">
-    <BoardVue :board="board"/>
+    <BoardVue :board="board" />
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+import { defineComponent, ref } from 'vue';
 import BoardVue from './components/Board.vue';
 import { Board } from './models/Board';
 
-@Component({
+export default defineComponent({
+  name: 'App',
   components: {
     BoardVue,
   },
-})
-export default class App extends Vue {
-  private board!: Board;
+  setup() {
+    // Create a reactive board instance
+    const board = ref<Board>(new Board());
 
-  constructor() {
-    super();
-    this.board = new Board();
-  }
-}
+    // Return the reactive state to the template
+    return {
+      board,
+    };
+  },
+});
 </script>
 
-<style lang="scss">
+<style lang="css">
 #app {
   font-family: 'Avenir', Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
